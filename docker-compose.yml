@@ -1,0 +1,36 @@
+services:
+  firestore:
+    image: google/cloud-sdk:emulators
+    command: ["gcloud", "emulators", "firestore", "start", "--host-port=0.0.0.0:8080", "--project=eventpulse-demo"]
+    ports: ["8080:8080"]
+    volumes: ["firestore-data:/root/.config/gcloud"]
+
+  pubsub:
+    image: google/cloud-sdk:emulators
+    command: ["gcloud", "beta", "emulators", "pubsub", "start", "--host-port=0.0.0.0:8085", "--project=eventpulse-demo"]
+    ports: ["8085:8085"]
+
+  backend:
+    build: ./backend
+    environment:
+      PORT: "8081"
+      GOOGLE_CLOUD_PROJECT: eventpulse-demo
+      FIRESTORE_EMULATOR_HOST: firestore:8080
+      PUBSUB_EMULATOR_HOST: pubsub:8085
+      PUBSUB_TOPIC: eventpulse-events
+      PUBSUB_SUBSCRIPTION: eventpulse-consumer
+      MAX_RETRIES: "3"
+    ports: ["8081:8081"]
+    depends_on: [firestore, pubsub]
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    environment:
+      VITE_API_URL: http://localhost:8081
+    ports: ["5173:5173"]
+    depends_on: [backend]
+    restart: unless-stopped
+
+volumes:
+  firestore-data:
